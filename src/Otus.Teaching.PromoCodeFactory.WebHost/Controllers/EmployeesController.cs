@@ -71,5 +71,65 @@ namespace Otus.Teaching.PromoCodeFactory.WebHost.Controllers
 
             return employeeModel;
         }
+
+        [HttpPost]
+        public async Task<ActionResult<EmployeeModel>> CreateEmployee(EmployeeModel model)
+        {
+            model.Id = Guid.NewGuid();
+            var employee = new Employee()
+            {
+                Email = model.Email,
+                LastName = model.LastName,
+                FirstName = model.FirstName,
+                Roles = model.Roles.Select(x => new Role()
+                {
+                    Name = x.Name,
+                    Description = x.Description
+                }).ToList()??new List<Role>()
+            };
+            var newEmp =  await _employeeRepository.CreateAsync(employee);
+            var employeeModel = new EmployeeResponse()
+            {
+                Id = newEmp.Id,
+                Email = newEmp.Email,
+                Roles = newEmp.Roles.Select(x => new RoleItemResponse()
+                {
+                    Name = x.Name,
+                    Description = x.Description
+                }).ToList(),
+                FullName = newEmp.FullName,
+                AppliedPromocodesCount = newEmp.AppliedPromocodesCount
+            };
+
+            return Ok(employeeModel);
+        }
+
+        [HttpDelete("deleteEmp/{id}")]
+        public async Task<ActionResult> DeleteEmployee(Guid id)
+        {
+            var employees = await _employeeRepository.GetAllAsync();
+            var emp = employees.FirstOrDefault(x => x.Id == id);
+            if (emp == null) return BadRequest();
+            await _employeeRepository.DeleteAsync(emp);
+            return Ok();
+        }
+
+        [HttpPost("update/{id}")]
+        public async Task<ActionResult> UpdateEmployee(Guid id,EmployeeModel model)
+        {
+            var emp = await _employeeRepository.GetByIdAsync(id);
+            if (emp == null) return BadRequest();
+            emp.Email = model.Email;
+            emp.Roles = model.Roles.Select(x => new Role()
+            {
+                Name = x.Name,
+                Description = x.Description,
+                Id = x.Id
+            }).ToList();
+            emp.LastName = model.LastName;
+            emp.FirstName = model.FirstName;
+            var response = await _employeeRepository.UpdateAsync(emp);
+            return Ok(response);
+        }
     }
 }
